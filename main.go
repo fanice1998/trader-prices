@@ -16,6 +16,7 @@ func init() {
 func main() {
 	var client tools.Client
 	client.BaseURL = BaseURL
+	client.symbol = "ETHUSDT"
 
 	tools.HistoricalPrice(client)
 }
