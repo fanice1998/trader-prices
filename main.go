@@ -19,5 +19,6 @@ func main() {
 	client.Symbol = "ETHUSDT"
 	client.Interval = "1h"
 
-	tools.HistoricalPrice(client)
+	//tools.HistoricalPrice(client)
+	tools.View(client)
 }

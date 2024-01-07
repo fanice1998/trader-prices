@@ -50,7 +50,10 @@ func HistoricalPrice(client Client) {
 			// 下載檔案
 			fileName := downloadData(v, client)
 			path := filepath.Join("data", client.Symbol, client.Interval)
-			unzipSource(filepath.Join(path, fileName), path)
+			err := unzipSource(filepath.Join(path, fileName), path)
+			if err != nil {
+				log.Println(err)
+			}
 			break
 		}
 	}
@@ -61,28 +64,52 @@ func unzipSource(zipFilePath, extracTo string) error {
 	if err != nil {
 		return err
 	}
-	defer r.Close()
+	defer func(r *zip.ReadCloser) {
+		err := r.Close()
+		if err != nil {
 
-	os.MkdirAll(extracTo, os.ModeDir)
+		}
+	}(r)
+
+	err = os.MkdirAll(extracTo, os.ModeDir)
+	if err != nil {
+		return err
+	}
 
 	for _, file := range r.File {
 		rc, err := file.Open()
 		if err != nil {
 			return err
 		}
-		defer rc.Close()
+		defer func(rc io.ReadCloser) {
+			err := rc.Close()
+			if err != nil {
+
+			}
+		}(rc)
 
 		tragetFilePath := filepath.Join(extracTo, file.Name)
 
 		if file.FileInfo().IsDir() {
-			os.MkdirAll(tragetFilePath, os.ModeDir)
+			err := os.MkdirAll(tragetFilePath, os.ModeDir)
+			if err != nil {
+				return err
+			}
 		} else {
-			os.MkdirAll(extracTo, os.ModeDir)
+			err := os.MkdirAll(extracTo, os.ModeDir)
+			if err != nil {
+				return err
+			}
 			w, err := os.Create(tragetFilePath)
 			if err != nil {
 				return err
 			}
-			defer w.Close()
+			defer func(w *os.File) {
+				err := w.Close()
+				if err != nil {
+
+				}
+			}(w)
 
 			_, err = io.Copy(w, rc)
 			if err != nil {
@@ -110,7 +137,12 @@ func downloadData(prefix string, client Client) string {
 	if err != nil {
 		log.Println(err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(resp.Body)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -125,7 +157,12 @@ func downloadData(prefix string, client Client) string {
 	if err != nil {
 		log.Println("Write file fail. Err msg: ", err)
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(file)
 
 	_, err = file.Write(body)
 	if err != nil {
@@ -186,7 +223,12 @@ func xmlParser(prefix string) []string {
 	if err != nil {
 		log.Println(err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(resp.Body)
 
 	// 解析xml響應
 	body, err := io.ReadAll(resp.Body)
