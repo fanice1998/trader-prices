@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"archive/zip"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -47,12 +48,53 @@ func HistoricalPrice(client Client) {
 	for _, v := range parser {
 		if !strings.Contains(v, "CHECKSUM") {
 			// 下載檔案
-			downloadData(v, client)
+			fileName := downloadData(v, client)
+			path := filepath.Join("data", client.Symbol, client.Interval)
+			unzipSource(filepath.Join(path, fileName), path)
+			break
 		}
 	}
 }
 
-func downloadData(prefix string, client Client) {
+func unzipSource(zipFilePath, extracTo string) error {
+	r, err := zip.OpenReader(zipFilePath)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	os.MkdirAll(extracTo, os.ModeDir)
+
+	for _, file := range r.File {
+		rc, err := file.Open()
+		if err != nil {
+			return err
+		}
+		defer rc.Close()
+
+		tragetFilePath := filepath.Join(extracTo, file.Name)
+
+		if file.FileInfo().IsDir() {
+			os.MkdirAll(tragetFilePath, os.ModeDir)
+		} else {
+			os.MkdirAll(extracTo, os.ModeDir)
+			w, err := os.Create(tragetFilePath)
+			if err != nil {
+				return err
+			}
+			defer w.Close()
+
+			_, err = io.Copy(w, rc)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func downloadData(prefix string, client Client) string {
 
 	// 請求目標URL後下載檔案
 	url := "https://data.binance.vision/"
@@ -77,7 +119,8 @@ func downloadData(prefix string, client Client) {
 
 	// 寫入檔案
 	splitResult := strings.Split(prefix, "/")
-	path := filepath.Join("data", client.Symbol, client.Interval, splitResult[len(splitResult)-1:][0])
+	fileName := splitResult[len(splitResult)-1:][0]
+	path := filepath.Join("data", client.Symbol, client.Interval, fileName)
 	file, err := os.Create(path)
 	if err != nil {
 		log.Println("Write file fail. Err msg: ", err)
@@ -88,6 +131,8 @@ func downloadData(prefix string, client Client) {
 	if err != nil {
 		fmt.Println("寫入時發生問題. Err: ", err)
 	}
+
+	return fileName
 }
 
 func creatDir(name string) {
@@ -121,7 +166,7 @@ func checkDir(file string) {
 	} else if err != nil {
 		log.Println("Error occurred while checking the directory. Error message: ", err)
 	} else {
-		fmt.Println(currentDir + file + " 已存在")
+		fmt.Println(filepath.Join(currentDir, file), "已存在")
 	}
 
 }
